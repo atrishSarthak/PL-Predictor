@@ -47,7 +47,21 @@ def select_relevant_columns(df):
     print("STEP 2: Selecting Relevant Columns")
     print(f"{'='*60}")
     
-    # Define required columns
+    # Map old column names to new ones if they exist
+    column_mapping = {
+        'MatchDate': 'Date',
+        'FullTimeHomeGoals': 'FTHG',
+        'FullTimeAwayGoals': 'FTAG',
+        'HalfTimeHomeGoals': 'HTHG',
+        'HalfTimeAwayGoals': 'HTAG',
+        'HalfTimeResult': 'HTR',
+        'FullTimeResult': 'FTR'
+    }
+    
+    # Rename columns if they exist
+    df = df.rename(columns=column_mapping)
+    
+    # Define required columns (after renaming)
     required_columns = [
         'Date', 'Season', 'HomeTeam', 'AwayTeam', 
         'FTHG', 'FTAG', 'HTHG', 'HTAG', 'HTR', 'FTR'

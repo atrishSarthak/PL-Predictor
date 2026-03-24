@@ -99,8 +99,8 @@ export default function Predictor() {
       </p>
 
       {bestModel && (
-        <div className={styles.card} style={{ marginBottom: '2rem', backgroundColor: '#e8f4f8' }}>
-          <h3>🤖 Prediction Model</h3>
+        <div className={styles.card} style={{ marginBottom: '2rem', background: 'linear-gradient(135deg, #fff9e6 0%, #fffef5 100%)' }}>
+          <h3 style={{ fontWeight: 800, marginBottom: '0.5rem' }}>🤖 Prediction Model</h3>
           <p style={{ margin: '0.5rem 0' }}>
             <strong>Model:</strong> {bestModel.name}
           </p>
@@ -154,14 +154,14 @@ export default function Predictor() {
             <p><strong>Predicted Outcome:</strong> {prediction.outcome}</p>
             <p><strong>Confidence:</strong> {prediction.confidence}%</p>
             <p style={{ fontSize: '0.9rem', marginTop: '1rem', color: '#666' }}>
-              ⚠️ Note: This is a placeholder prediction. In production, this would use the trained {bestModel?.name} model to make real predictions.
+             In production, this would use the trained {bestModel?.name} model to make real predictions.
             </p>
           </div>
         )}
       </div>
 
-      <div className={styles.card} style={{ marginTop: '2rem', backgroundColor: '#fff3cd' }}>
-        <h3>ℹ️ About This Predictor</h3>
+      <div className={styles.card} style={{ marginTop: '2rem', background: 'linear-gradient(135deg, #fff9e6 0%, #fffef5 100%)' }}>
+        <h3 style={{ fontWeight: 800, marginBottom: '0.5rem' }}>ℹ️ About This Predictor</h3>
         <p style={{ margin: '0.5rem 0' }}>
           This is a demonstration interface. To implement real predictions:
         </p>
