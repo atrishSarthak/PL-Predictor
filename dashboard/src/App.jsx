@@ -16,7 +16,7 @@ export default function App() {
         {/* Navigation Bar */}
         <nav className={styles.navbar}>
           <ul className={styles.navList}>
-            <li>⚽ EPL Match Predictor</li>
+            <li>The Great Predictor</li>
             <li>
               <NavLink 
                 to="/" 

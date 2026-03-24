@@ -61,12 +61,20 @@ def statistical_summary(df):
     print("STEP 2: Statistical Summary")
     print(f"{'='*60}")
     
-    goal_columns = ['FTHG', 'FTAG', 'HTHG', 'HTAG']
-    available_columns = [col for col in goal_columns if col in df.columns]
-    missing_columns = [col for col in goal_columns if col not in df.columns]
+    # Try both old and new column names
+    goal_columns_map = {
+        'FTHG': 'FullTimeHomeGoals',
+        'FTAG': 'FullTimeAwayGoals',
+        'HTHG': 'HalfTimeHomeGoals',
+        'HTAG': 'HalfTimeAwayGoals'
+    }
     
-    if missing_columns:
-        print(f"\n⚠ WARNING: The following columns are missing: {', '.join(missing_columns)}")
+    available_columns = []
+    for old_name, new_name in goal_columns_map.items():
+        if new_name in df.columns:
+            available_columns.append(new_name)
+        elif old_name in df.columns:
+            available_columns.append(old_name)
     
     if available_columns:
         print(f"\nDescriptive Statistics for Goal Columns:")
@@ -77,7 +85,7 @@ def statistical_summary(df):
         for col in available_columns:
             print(f"  {col}: {df[col].median()}")
     else:
-        print("\n⚠ WARNING: None of the expected goal columns (FTHG, FTAG, HTHG, HTAG) were found")
+        print("\n⚠ WARNING: None of the expected goal columns were found")
     
     print(f"\n✓ Step 2 completed successfully")
 
@@ -88,15 +96,18 @@ def match_outcome_distribution(df, output_dir):
     print("STEP 3: Match Outcome Distribution")
     print(f"{'='*60}")
     
-    if 'FTR' not in df.columns:
-        print("\n⚠ WARNING: FTR column not found. Skipping outcome distribution.")
+    # Try both old and new column names
+    ftr_col = 'FullTimeResult' if 'FullTimeResult' in df.columns else 'FTR'
+    
+    if ftr_col not in df.columns:
+        print("\n⚠ WARNING: FTR/FullTimeResult column not found. Skipping outcome distribution.")
         return
     
-    outcome_counts = df['FTR'].value_counts()
+    outcome_counts = df[ftr_col].value_counts()
     print(f"\nMatch Outcome Frequency:")
     print(outcome_counts)
     print(f"\nPercentages:")
-    print(df['FTR'].value_counts(normalize=True) * 100)
+    print(df[ftr_col].value_counts(normalize=True) * 100)
     
     # Create bar chart
     plt.figure(figsize=(10, 6))
@@ -121,14 +132,18 @@ def goals_analysis(df, output_dir):
     print("STEP 4: Goals Analysis")
     print(f"{'='*60}")
     
-    if 'FTHG' not in df.columns or 'FTAG' not in df.columns:
-        print("\n⚠ WARNING: FTHG or FTAG columns not found. Skipping goals analysis.")
+    # Try both old and new column names
+    fthg_col = 'FullTimeHomeGoals' if 'FullTimeHomeGoals' in df.columns else 'FTHG'
+    ftag_col = 'FullTimeAwayGoals' if 'FullTimeAwayGoals' in df.columns else 'FTAG'
+    
+    if fthg_col not in df.columns or ftag_col not in df.columns:
+        print("\n⚠ WARNING: Goal columns not found. Skipping goals analysis.")
         return
     
     # Create box plot
     plt.figure(figsize=(10, 6))
-    data_to_plot = [df['FTHG'].dropna(), df['FTAG'].dropna()]
-    box = plt.boxplot(data_to_plot, labels=['Home Goals (FTHG)', 'Away Goals (FTAG)'],
+    data_to_plot = [df[fthg_col].dropna(), df[ftag_col].dropna()]
+    box = plt.boxplot(data_to_plot, labels=['Home Goals', 'Away Goals'],
                       patch_artist=True)
     
     # Color the boxes
@@ -189,12 +204,15 @@ def season_trends(df, output_dir):
     print("STEP 6: Season-wise Outcome Trends")
     print(f"{'='*60}")
     
-    if 'Season' not in df.columns or 'FTR' not in df.columns:
-        print("\n⚠ WARNING: Season or FTR column not found. Skipping season trends.")
+    # Try both old and new column names
+    ftr_col = 'FullTimeResult' if 'FullTimeResult' in df.columns else 'FTR'
+    
+    if 'Season' not in df.columns or ftr_col not in df.columns:
+        print("\n⚠ WARNING: Season or FTR/FullTimeResult column not found. Skipping season trends.")
         return
     
     # Group by Season and FTR
-    season_outcomes = df.groupby(['Season', 'FTR']).size().unstack(fill_value=0)
+    season_outcomes = df.groupby(['Season', ftr_col]).size().unstack(fill_value=0)
     
     print(f"\nSeason-wise outcome counts:")
     print(season_outcomes)
@@ -233,16 +251,19 @@ def top_teams_wins(df, output_dir):
     print("STEP 7: Top Teams by Wins")
     print(f"{'='*60}")
     
-    required_cols = ['HomeTeam', 'AwayTeam', 'FTR']
+    # Try both old and new column names
+    ftr_col = 'FullTimeResult' if 'FullTimeResult' in df.columns else 'FTR'
+    
+    required_cols = ['HomeTeam', 'AwayTeam', ftr_col]
     if not all(col in df.columns for col in required_cols):
-        print(f"\n⚠ WARNING: Required columns {required_cols} not found. Skipping top teams analysis.")
+        print(f"\n⚠ WARNING: Required columns not found. Skipping top teams analysis.")
         return
     
     # Calculate home wins
-    home_wins = df[df['FTR'] == 'H']['HomeTeam'].value_counts()
+    home_wins = df[df[ftr_col] == 'H']['HomeTeam'].value_counts()
     
     # Calculate away wins
-    away_wins = df[df['FTR'] == 'A']['AwayTeam'].value_counts()
+    away_wins = df[df[ftr_col] == 'A']['AwayTeam'].value_counts()
     
     # Combine total wins
     total_wins = home_wins.add(away_wins, fill_value=0).sort_values(ascending=False)
