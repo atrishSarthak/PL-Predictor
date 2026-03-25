@@ -46,8 +46,24 @@ def clean_basic_data(df):
     print("STEP 2: Basic Data Cleaning")
     print(f"{'='*60}")
     
-    # Keep only essential columns
-    required_cols = ['Date', 'Season', 'HomeTeam', 'AwayTeam', 'FTHG', 'FTAG', 'FTR']
+    # Rename columns for consistency
+    column_mapping = {
+        'HomeShots': 'HS',
+        'AwayShots': 'AS',
+        'HomeShotsOnTarget': 'HST',
+        'AwayShotsOnTarget': 'AST',
+        'HomeFouls': 'HF',
+        'AwayFouls': 'AF',
+        'HomeYellowCards': 'HY',
+        'AwayYellowCards': 'AY',
+        'HalfTimeHomeGoals': 'HTHG',
+        'HalfTimeAwayGoals': 'HTAG'
+    }
+    df = df.rename(columns=column_mapping)
+    
+    # Keep essential columns including match statistics
+    required_cols = ['Date', 'Season', 'HomeTeam', 'AwayTeam', 'FTHG', 'FTAG', 'FTR',
+                     'HS', 'AS', 'HST', 'AST', 'HF', 'AF', 'HY', 'AY', 'HTHG', 'HTAG']
     existing_cols = [col for col in required_cols if col in df.columns]
     
     df = df[existing_cols].copy()
@@ -63,6 +79,7 @@ def clean_basic_data(df):
     
     print(f"\n✓ Cleaned dataset: {df.shape[0]} rows")
     print(f"✓ Date range: {df['Date'].min()} to {df['Date'].max()}")
+    print(f"✓ Columns available: {len(existing_cols)}")
     print(f"\n✓ Step 2 completed successfully")
     
     return df
@@ -75,28 +92,37 @@ def calculate_team_form(df, team, is_home, n_matches=5):
         team_matches = df[df['HomeTeam'] == team].copy()
         goals_for = 'FTHG'
         goals_against = 'FTAG'
-        result_map = {'H': 3, 'D': 1, 'A': 0}  # Points from home perspective
+        shots = 'HS'
+        shots_on_target = 'HST'
+        fouls = 'HF'
+        yellows = 'HY'
+        ht_goals_for = 'HTHG'
+        ht_goals_against = 'HTAG'
+        result_map = {'H': 3, 'D': 1, 'A': 0}
     else:
         team_matches = df[df['AwayTeam'] == team].copy()
         goals_for = 'FTAG'
         goals_against = 'FTHG'
-        result_map = {'A': 3, 'D': 1, 'H': 0}  # Points from away perspective
+        shots = 'AS'
+        shots_on_target = 'AST'
+        fouls = 'AF'
+        yellows = 'AY'
+        ht_goals_for = 'HTAG'
+        ht_goals_against = 'HTHG'
+        result_map = {'A': 3, 'D': 1, 'H': 0}
     
     if len(team_matches) < n_matches:
-        # Not enough history, return defaults
         return {
-            'wins': 0,
-            'draws': 0,
-            'losses': 0,
-            'goals_scored': 0.0,
-            'goals_conceded': 0.0,
-            'points': 0
+            'wins': 0, 'draws': 0, 'losses': 0,
+            'goals_scored': 0.0, 'goals_conceded': 0.0, 'points': 0,
+            'shots': 0.0, 'shots_on_target': 0.0, 'shot_accuracy': 0.0,
+            'fouls': 0.0, 'yellows': 0.0,
+            'ht_goals_scored': 0.0, 'ht_goals_conceded': 0.0
         }
     
-    # Get last N matches
     recent = team_matches.tail(n_matches)
     
-    # Calculate statistics
+    # Basic stats
     wins = sum(recent['FTR'].map(result_map) == 3)
     draws = sum(recent['FTR'].map(result_map) == 1)
     losses = sum(recent['FTR'].map(result_map) == 0)
@@ -104,13 +130,23 @@ def calculate_team_form(df, team, is_home, n_matches=5):
     goals_conceded = recent[goals_against].mean()
     points = recent['FTR'].map(result_map).sum()
     
+    # Advanced stats
+    avg_shots = recent[shots].mean() if shots in recent.columns else 0.0
+    avg_shots_on_target = recent[shots_on_target].mean() if shots_on_target in recent.columns else 0.0
+    shot_accuracy = (avg_shots_on_target / avg_shots * 100) if avg_shots > 0 else 0.0
+    avg_fouls = recent[fouls].mean() if fouls in recent.columns else 0.0
+    avg_yellows = recent[yellows].mean() if yellows in recent.columns else 0.0
+    
+    # Half-time stats
+    ht_goals_scored = recent[ht_goals_for].mean() if ht_goals_for in recent.columns else 0.0
+    ht_goals_conceded = recent[ht_goals_against].mean() if ht_goals_against in recent.columns else 0.0
+    
     return {
-        'wins': wins,
-        'draws': draws,
-        'losses': losses,
-        'goals_scored': goals_scored,
-        'goals_conceded': goals_conceded,
-        'points': points
+        'wins': wins, 'draws': draws, 'losses': losses,
+        'goals_scored': goals_scored, 'goals_conceded': goals_conceded, 'points': points,
+        'shots': avg_shots, 'shots_on_target': avg_shots_on_target, 'shot_accuracy': shot_accuracy,
+        'fouls': avg_fouls, 'yellows': avg_yellows,
+        'ht_goals_scored': ht_goals_scored, 'ht_goals_conceded': ht_goals_conceded
     }
 
 
@@ -203,24 +239,36 @@ def engineer_features(df):
             
             # Home team form
             'home_last5_wins': home_form['wins'],
-            'home_last5_draws': home_form['draws'],
-            'home_last5_losses': home_form['losses'],
+            'home_last5_points': home_form['points'],
             'home_last5_goals_scored': home_form['goals_scored'],
             'home_last5_goals_conceded': home_form['goals_conceded'],
-            'home_last5_points': home_form['points'],
             
             # Away team form
             'away_last5_wins': away_form['wins'],
-            'away_last5_draws': away_form['draws'],
-            'away_last5_losses': away_form['losses'],
+            'away_last5_points': away_form['points'],
             'away_last5_goals_scored': away_form['goals_scored'],
             'away_last5_goals_conceded': away_form['goals_conceded'],
-            'away_last5_points': away_form['points'],
+            
+            # Advanced stats - Shots
+            'ShotDiff': home_form['shots'] - away_form['shots'],
+            'ShotOnTargetDiff': home_form['shots_on_target'] - away_form['shots_on_target'],
+            'ShotAccuracyHome': home_form['shot_accuracy'],
+            'ShotAccuracyAway': away_form['shot_accuracy'],
+            
+            # Advanced stats - Discipline
+            'FoulDiff': home_form['fouls'] - away_form['fouls'],
+            'YellowCardDiff': home_form['yellows'] - away_form['yellows'],
+            
+            # Advanced stats - Half-time performance
+            'GoalDiff_HT': home_form['ht_goals_scored'] - away_form['ht_goals_conceded'],
+            
+            # Strength indicators
+            'WinRateDiff': (home_form['wins'] / 5.0) - (away_form['wins'] / 5.0),
+            'StrengthDiff': home_form['points'] - away_form['points'],
             
             # Head-to-head
             'h2h_home_wins': h2h_stats['h2h_home_wins'],
             'h2h_away_wins': h2h_stats['h2h_away_wins'],
-            'h2h_draws': h2h_stats['h2h_draws'],
             
             # Target variable
             'FTR': current_match['FTR']
