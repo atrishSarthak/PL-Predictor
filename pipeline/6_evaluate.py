@@ -1,5 +1,6 @@
 """
-Phase 6: Evaluation for Optimized Models with Selected Features
+Phase 6: Evaluation for Optimized Models with Traditional ML Models
+Includes CatBoost (best), Random Forest, Gradient Boosting, and traditional models
 """
 
 import os
@@ -11,6 +12,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import joblib
 from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.svm import SVC
+from sklearn.naive_bayes import GaussianNB
 from sklearn.metrics import (
     accuracy_score,
     classification_report,
@@ -25,7 +30,7 @@ plt.rcParams['figure.figsize'] = (10, 8)
 
 
 def load_data_and_models():
-    """Load selected features data and optimized models."""
+    """Load selected features data and all models."""
     print(f"\n{'='*60}")
     print("Loading Data and Models")
     print(f"{'='*60}")
@@ -59,11 +64,48 @@ def load_data_and_models():
             except Exception as e:
                 print(f"⚠️  Failed to load {name}: {str(e)[:50]}")
     
-    if not models:
-        print("ERROR: No models found!")
-        sys.exit(1)
+    # Train traditional ML models
+    print(f"\n{'='*60}")
+    print("Training Traditional ML Models")
+    print(f"{'='*60}")
     
-    print(f"\n✓ Loaded {len(models)} models")
+    # Logistic Regression
+    print("Training Logistic Regression...")
+    lr = LogisticRegression(max_iter=1000, random_state=42)
+    lr.fit(X_train, y_train)
+    models["Logistic Regression"] = lr
+    print("✓ Logistic Regression trained")
+    
+    # Decision Tree
+    print("Training Decision Tree...")
+    dt = DecisionTreeClassifier(max_depth=10, random_state=42)
+    dt.fit(X_train, y_train)
+    models["Decision Tree"] = dt
+    print("✓ Decision Tree trained")
+    
+    # SVM
+    print("Training SVM...")
+    svm = SVC(kernel='rbf', random_state=42, probability=True)
+    svm.fit(X_train, y_train)
+    models["SVM"] = svm
+    print("✓ SVM trained")
+    
+    # Naive Bayes
+    print("Training Naive Bayes...")
+    nb = GaussianNB()
+    nb.fit(X_train, y_train)
+    models["Naive Bayes"] = nb
+    print("✓ Naive Bayes trained")
+    
+    # Save traditional models
+    print(f"\nSaving traditional models...")
+    joblib.dump(lr, "output/logistic_regression.pkl")
+    joblib.dump(dt, "output/decision_tree.pkl")
+    joblib.dump(svm, "output/svm.pkl")
+    joblib.dump(nb, "output/naive_bayes.pkl")
+    print("✓ Traditional models saved")
+    
+    print(f"\n✓ Loaded/trained {len(models)} models total")
     
     return X_test, y_test, models
 
@@ -122,7 +164,7 @@ def create_comparison_chart(results):
     df = pd.DataFrame(results).T
     df = df.sort_values('accuracy', ascending=False)
     
-    fig, ax = plt.subplots(figsize=(14, 8))
+    fig, ax = plt.subplots(figsize=(16, 10))
     
     x = np.arange(len(df))
     width = 0.2
@@ -136,10 +178,10 @@ def create_comparison_chart(results):
     
     ax.set_xlabel('Models', fontsize=12, fontweight='bold')
     ax.set_ylabel('Score', fontsize=12, fontweight='bold')
-    ax.set_title('Optimized Models - Performance Comparison (Selected Features)', 
+    ax.set_title('All Models - Performance Comparison (Traditional + Advanced)', 
                  fontsize=16, fontweight='bold', pad=20)
     ax.set_xticks(x)
-    ax.set_xticklabels(df.index, rotation=15, ha='right')
+    ax.set_xticklabels(df.index, rotation=25, ha='right', fontsize=10)
     ax.legend(loc='lower right', fontsize=11)
     ax.set_ylim(0, 1.0)
     ax.grid(axis='y', alpha=0.3)
@@ -147,13 +189,13 @@ def create_comparison_chart(results):
     # Add accuracy values on top of bars
     for i, (idx, row) in enumerate(df.iterrows()):
         ax.text(i, row['accuracy'] + 0.02, f"{row['accuracy']*100:.1f}%", 
-                ha='center', fontsize=10, fontweight='bold')
+                ha='center', fontsize=9, fontweight='bold')
     
     plt.tight_layout()
-    plt.savefig('output/optimized_comparison.png', dpi=300, bbox_inches='tight')
+    plt.savefig('output/all_models_comparison.png', dpi=300, bbox_inches='tight')
     plt.close()
     
-    print("✓ Saved: output/optimized_comparison.png")
+    print("✓ Saved: output/all_models_comparison.png")
 
 
 def create_confusion_matrices(y_test, predictions):
