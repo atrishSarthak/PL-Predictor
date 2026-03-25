@@ -27,6 +27,26 @@ export default function Overview() {
       filename: 'top_teams_wins.png',
       title: 'Top Teams by Wins',
       description: 'Top 20 teams ranked by total wins (home + away)'
+    },
+    {
+      filename: 'shots_analysis.png',
+      title: 'Shots Analysis',
+      description: 'Analysis of shots, shots on target, and shot accuracy'
+    },
+    {
+      filename: 'discipline_analysis.png',
+      title: 'Discipline Analysis',
+      description: 'Fouls and yellow cards statistics'
+    },
+    {
+      filename: 'halftime_analysis.png',
+      title: 'Half-Time Analysis',
+      description: 'Half-time vs full-time results and second half performance'
+    },
+    {
+      filename: 'home_advantage_analysis.png',
+      title: 'Home Advantage Analysis',
+      description: 'Analysis of home advantage and goal differences'
     }
   ];
 

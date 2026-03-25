@@ -27,6 +27,11 @@ export default function TeamAnalysis() {
       filename: 'class_distribution_after.png',
       title: 'Class Distribution (After Balancing)',
       description: 'Distribution after applying SMOTE balancing (if applied)'
+    },
+    {
+      filename: 'correlation_heatmap.png',
+      title: 'Correlation Heatmap',
+      description: 'Correlation matrix of all numeric features'
     }
   ];
 

@@ -7,6 +7,7 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import numpy as np
 import sys
 
 # Set style for better-looking plots
@@ -291,6 +292,300 @@ def top_teams_wins(df, output_dir):
     print(f"✓ Step 7 completed successfully")
 
 
+def shots_analysis(df, output_dir):
+    """Analyze shots and shots on target statistics."""
+    print(f"\n{'='*60}")
+    print("STEP 8: Shots Analysis")
+    print(f"{'='*60}")
+    
+    # Check for shot columns
+    hs_col = 'HomeShots' if 'HomeShots' in df.columns else 'HS'
+    as_col = 'AwayShots' if 'AwayShots' in df.columns else 'AS'
+    hst_col = 'HomeShotsOnTarget' if 'HomeShotsOnTarget' in df.columns else 'HST'
+    ast_col = 'AwayShotsOnTarget' if 'AwayShotsOnTarget' in df.columns else 'AST'
+    
+    if not all(col in df.columns for col in [hs_col, as_col, hst_col, ast_col]):
+        print("\n⚠ WARNING: Shot columns not found. Skipping shots analysis.")
+        return
+    
+    # Create figure with subplots
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    
+    # 1. Average shots comparison
+    avg_home_shots = df[hs_col].mean()
+    avg_away_shots = df[as_col].mean()
+    avg_home_sot = df[hst_col].mean()
+    avg_away_sot = df[ast_col].mean()
+    
+    axes[0, 0].bar(['Home Shots', 'Away Shots', 'Home SOT', 'Away SOT'],
+                   [avg_home_shots, avg_away_shots, avg_home_sot, avg_away_sot],
+                   color=['#3498db', '#e74c3c', '#2ecc71', '#f39c12'])
+    axes[0, 0].set_title('Average Shots per Match', fontweight='bold')
+    axes[0, 0].set_ylabel('Average Count')
+    axes[0, 0].grid(axis='y', alpha=0.3)
+    
+    # 2. Shot accuracy distribution
+    df['home_shot_accuracy'] = (df[hst_col] / df[hs_col] * 100).replace([np.inf, -np.inf], 0).fillna(0)
+    df['away_shot_accuracy'] = (df[ast_col] / df[as_col] * 100).replace([np.inf, -np.inf], 0).fillna(0)
+    
+    axes[0, 1].hist([df['home_shot_accuracy'], df['away_shot_accuracy']], 
+                    bins=20, label=['Home', 'Away'], color=['#3498db', '#e74c3c'], alpha=0.7)
+    axes[0, 1].set_title('Shot Accuracy Distribution', fontweight='bold')
+    axes[0, 1].set_xlabel('Accuracy (%)')
+    axes[0, 1].set_ylabel('Frequency')
+    axes[0, 1].legend()
+    axes[0, 1].grid(axis='y', alpha=0.3)
+    
+    # 3. Shots vs Goals correlation
+    axes[1, 0].scatter(df[hs_col], df['FullTimeHomeGoals'] if 'FullTimeHomeGoals' in df.columns else df['FTHG'],
+                      alpha=0.5, color='#3498db', label='Home')
+    axes[1, 0].scatter(df[as_col], df['FullTimeAwayGoals'] if 'FullTimeAwayGoals' in df.columns else df['FTAG'],
+                      alpha=0.5, color='#e74c3c', label='Away')
+    axes[1, 0].set_title('Shots vs Goals Scored', fontweight='bold')
+    axes[1, 0].set_xlabel('Total Shots')
+    axes[1, 0].set_ylabel('Goals Scored')
+    axes[1, 0].legend()
+    axes[1, 0].grid(alpha=0.3)
+    
+    # 4. Shots on target vs Goals
+    axes[1, 1].scatter(df[hst_col], df['FullTimeHomeGoals'] if 'FullTimeHomeGoals' in df.columns else df['FTHG'],
+                      alpha=0.5, color='#2ecc71', label='Home')
+    axes[1, 1].scatter(df[ast_col], df['FullTimeAwayGoals'] if 'FullTimeAwayGoals' in df.columns else df['FTAG'],
+                      alpha=0.5, color='#f39c12', label='Away')
+    axes[1, 1].set_title('Shots on Target vs Goals', fontweight='bold')
+    axes[1, 1].set_xlabel('Shots on Target')
+    axes[1, 1].set_ylabel('Goals Scored')
+    axes[1, 1].legend()
+    axes[1, 1].grid(alpha=0.3)
+    
+    plt.tight_layout()
+    output_path = os.path.join(output_dir, 'shots_analysis.png')
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.close()
+    
+    print(f"\n✓ Chart saved: {output_path}")
+    print(f"✓ Step 8 completed successfully")
+
+
+def discipline_analysis(df, output_dir):
+    """Analyze fouls and cards statistics."""
+    print(f"\n{'='*60}")
+    print("STEP 9: Discipline Analysis (Fouls & Cards)")
+    print(f"{'='*60}")
+    
+    # Check for discipline columns
+    hf_col = 'HomeFouls' if 'HomeFouls' in df.columns else 'HF'
+    af_col = 'AwayFouls' if 'AwayFouls' in df.columns else 'AF'
+    hy_col = 'HomeYellowCards' if 'HomeYellowCards' in df.columns else 'HY'
+    ay_col = 'AwayYellowCards' if 'AwayYellowCards' in df.columns else 'AY'
+    
+    if not all(col in df.columns for col in [hf_col, af_col, hy_col, ay_col]):
+        print("\n⚠ WARNING: Discipline columns not found. Skipping discipline analysis.")
+        return
+    
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    
+    # 1. Average fouls per match
+    avg_home_fouls = df[hf_col].mean()
+    avg_away_fouls = df[af_col].mean()
+    
+    axes[0, 0].bar(['Home Fouls', 'Away Fouls'],
+                   [avg_home_fouls, avg_away_fouls],
+                   color=['#3498db', '#e74c3c'])
+    axes[0, 0].set_title('Average Fouls per Match', fontweight='bold')
+    axes[0, 0].set_ylabel('Average Count')
+    axes[0, 0].grid(axis='y', alpha=0.3)
+    
+    # 2. Average yellow cards
+    avg_home_yellows = df[hy_col].mean()
+    avg_away_yellows = df[ay_col].mean()
+    
+    axes[0, 1].bar(['Home Yellow Cards', 'Away Yellow Cards'],
+                   [avg_home_yellows, avg_away_yellows],
+                   color=['#f39c12', '#e67e22'])
+    axes[0, 1].set_title('Average Yellow Cards per Match', fontweight='bold')
+    axes[0, 1].set_ylabel('Average Count')
+    axes[0, 1].grid(axis='y', alpha=0.3)
+    
+    # 3. Fouls distribution
+    axes[1, 0].hist([df[hf_col], df[af_col]], bins=20, 
+                    label=['Home', 'Away'], color=['#3498db', '#e74c3c'], alpha=0.7)
+    axes[1, 0].set_title('Fouls Distribution', fontweight='bold')
+    axes[1, 0].set_xlabel('Number of Fouls')
+    axes[1, 0].set_ylabel('Frequency')
+    axes[1, 0].legend()
+    axes[1, 0].grid(axis='y', alpha=0.3)
+    
+    # 4. Yellow cards distribution
+    axes[1, 1].hist([df[hy_col], df[ay_col]], bins=15,
+                    label=['Home', 'Away'], color=['#f39c12', '#e67e22'], alpha=0.7)
+    axes[1, 1].set_title('Yellow Cards Distribution', fontweight='bold')
+    axes[1, 1].set_xlabel('Number of Yellow Cards')
+    axes[1, 1].set_ylabel('Frequency')
+    axes[1, 1].legend()
+    axes[1, 1].grid(axis='y', alpha=0.3)
+    
+    plt.tight_layout()
+    output_path = os.path.join(output_dir, 'discipline_analysis.png')
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.close()
+    
+    print(f"\n✓ Chart saved: {output_path}")
+    print(f"✓ Step 9 completed successfully")
+
+
+def halftime_analysis(df, output_dir):
+    """Analyze half-time vs full-time results."""
+    print(f"\n{'='*60}")
+    print("STEP 10: Half-Time Analysis")
+    print(f"{'='*60}")
+    
+    # Check for half-time columns
+    hthg_col = 'HalfTimeHomeGoals' if 'HalfTimeHomeGoals' in df.columns else 'HTHG'
+    htag_col = 'HalfTimeAwayGoals' if 'HalfTimeAwayGoals' in df.columns else 'HTAG'
+    htr_col = 'HalfTimeResult' if 'HalfTimeResult' in df.columns else 'HTR'
+    ftr_col = 'FullTimeResult' if 'FullTimeResult' in df.columns else 'FTR'
+    
+    if not all(col in df.columns for col in [hthg_col, htag_col, htr_col, ftr_col]):
+        print("\n⚠ WARNING: Half-time columns not found. Skipping half-time analysis.")
+        return
+    
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    
+    # 1. Half-time vs Full-time goals
+    axes[0, 0].scatter(df[hthg_col], df['FullTimeHomeGoals'] if 'FullTimeHomeGoals' in df.columns else df['FTHG'],
+                      alpha=0.5, color='#3498db', label='Home')
+    axes[0, 0].plot([0, df[hthg_col].max()], [0, df[hthg_col].max()], 'r--', alpha=0.5)
+    axes[0, 0].set_title('Half-Time vs Full-Time Goals (Home)', fontweight='bold')
+    axes[0, 0].set_xlabel('Half-Time Goals')
+    axes[0, 0].set_ylabel('Full-Time Goals')
+    axes[0, 0].grid(alpha=0.3)
+    
+    # 2. Half-time result distribution
+    ht_counts = df[htr_col].value_counts()
+    axes[0, 1].bar(ht_counts.index, ht_counts.values, color=['#2ecc71', '#3498db', '#e74c3c'])
+    axes[0, 1].set_title('Half-Time Result Distribution', fontweight='bold')
+    axes[0, 1].set_xlabel('Result (H=Home, D=Draw, A=Away)')
+    axes[0, 1].set_ylabel('Count')
+    axes[0, 1].grid(axis='y', alpha=0.3)
+    
+    # 3. HT to FT conversion matrix
+    ht_ft_matrix = pd.crosstab(df[htr_col], df[ftr_col], normalize='index') * 100
+    im = axes[1, 0].imshow(ht_ft_matrix.values, cmap='YlOrRd', aspect='auto')
+    axes[1, 0].set_xticks(range(len(ht_ft_matrix.columns)))
+    axes[1, 0].set_yticks(range(len(ht_ft_matrix.index)))
+    axes[1, 0].set_xticklabels(ht_ft_matrix.columns)
+    axes[1, 0].set_yticklabels(ht_ft_matrix.index)
+    axes[1, 0].set_title('HT to FT Conversion (% of HT results)', fontweight='bold')
+    axes[1, 0].set_xlabel('Full-Time Result')
+    axes[1, 0].set_ylabel('Half-Time Result')
+    
+    # Add percentage labels
+    for i in range(len(ht_ft_matrix.index)):
+        for j in range(len(ht_ft_matrix.columns)):
+            axes[1, 0].text(j, i, f'{ht_ft_matrix.values[i, j]:.1f}%',
+                          ha='center', va='center', color='black', fontweight='bold')
+    
+    # 4. Second half goals
+    df['second_half_home_goals'] = (df['FullTimeHomeGoals'] if 'FullTimeHomeGoals' in df.columns else df['FTHG']) - df[hthg_col]
+    df['second_half_away_goals'] = (df['FullTimeAwayGoals'] if 'FullTimeAwayGoals' in df.columns else df['FTAG']) - df[htag_col]
+    
+    axes[1, 1].hist([df['second_half_home_goals'], df['second_half_away_goals']], 
+                    bins=10, label=['Home', 'Away'], color=['#3498db', '#e74c3c'], alpha=0.7)
+    axes[1, 1].set_title('Second Half Goals Distribution', fontweight='bold')
+    axes[1, 1].set_xlabel('Goals Scored in 2nd Half')
+    axes[1, 1].set_ylabel('Frequency')
+    axes[1, 1].legend()
+    axes[1, 1].grid(axis='y', alpha=0.3)
+    
+    plt.tight_layout()
+    output_path = os.path.join(output_dir, 'halftime_analysis.png')
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.close()
+    
+    print(f"\n✓ Chart saved: {output_path}")
+    print(f"✓ Step 10 completed successfully")
+
+
+def home_advantage_analysis(df, output_dir):
+    """Analyze home advantage statistics."""
+    print(f"\n{'='*60}")
+    print("STEP 11: Home Advantage Analysis")
+    print(f"{'='*60}")
+    
+    ftr_col = 'FullTimeResult' if 'FullTimeResult' in df.columns else 'FTR'
+    
+    if ftr_col not in df.columns:
+        print("\n⚠ WARNING: FTR column not found. Skipping home advantage analysis.")
+        return
+    
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    
+    # 1. Win percentage by venue
+    home_wins = (df[ftr_col] == 'H').sum()
+    away_wins = (df[ftr_col] == 'A').sum()
+    draws = (df[ftr_col] == 'D').sum()
+    total = len(df)
+    
+    percentages = [home_wins/total*100, draws/total*100, away_wins/total*100]
+    axes[0, 0].bar(['Home Win', 'Draw', 'Away Win'], percentages,
+                   color=['#2ecc71', '#3498db', '#e74c3c'])
+    axes[0, 0].set_title('Overall Win Distribution', fontweight='bold')
+    axes[0, 0].set_ylabel('Percentage (%)')
+    axes[0, 0].grid(axis='y', alpha=0.3)
+    
+    # Add percentage labels
+    for i, v in enumerate(percentages):
+        axes[0, 0].text(i, v + 1, f'{v:.1f}%', ha='center', fontweight='bold')
+    
+    # 2. Home advantage by season
+    season_ha = df.groupby('Season')[ftr_col].apply(lambda x: (x == 'H').sum() / len(x) * 100)
+    axes[0, 1].plot(season_ha.index, season_ha.values, marker='o', linewidth=2, color='#2ecc71')
+    axes[0, 1].axhline(y=50, color='r', linestyle='--', alpha=0.5, label='50% baseline')
+    axes[0, 1].set_title('Home Win % by Season', fontweight='bold')
+    axes[0, 1].set_xlabel('Season')
+    axes[0, 1].set_ylabel('Home Win %')
+    axes[0, 1].legend()
+    axes[0, 1].grid(alpha=0.3)
+    axes[0, 1].tick_params(axis='x', rotation=45)
+    
+    # 3. Goals scored: Home vs Away
+    fthg_col = 'FullTimeHomeGoals' if 'FullTimeHomeGoals' in df.columns else 'FTHG'
+    ftag_col = 'FullTimeAwayGoals' if 'FullTimeAwayGoals' in df.columns else 'FTAG'
+    
+    if fthg_col in df.columns and ftag_col in df.columns:
+        avg_home_goals = df[fthg_col].mean()
+        avg_away_goals = df[ftag_col].mean()
+        
+        axes[1, 0].bar(['Home Goals', 'Away Goals'], [avg_home_goals, avg_away_goals],
+                      color=['#2ecc71', '#e74c3c'])
+        axes[1, 0].set_title('Average Goals per Match', fontweight='bold')
+        axes[1, 0].set_ylabel('Average Goals')
+        axes[1, 0].grid(axis='y', alpha=0.3)
+        
+        for i, v in enumerate([avg_home_goals, avg_away_goals]):
+            axes[1, 0].text(i, v + 0.05, f'{v:.2f}', ha='center', fontweight='bold')
+    
+    # 4. Goal difference distribution
+    if fthg_col in df.columns and ftag_col in df.columns:
+        df['goal_diff'] = df[fthg_col] - df[ftag_col]
+        axes[1, 1].hist(df['goal_diff'], bins=30, color='#3498db', alpha=0.7, edgecolor='black')
+        axes[1, 1].axvline(x=0, color='r', linestyle='--', linewidth=2, label='Draw line')
+        axes[1, 1].set_title('Goal Difference Distribution', fontweight='bold')
+        axes[1, 1].set_xlabel('Goal Difference (Home - Away)')
+        axes[1, 1].set_ylabel('Frequency')
+        axes[1, 1].legend()
+        axes[1, 1].grid(axis='y', alpha=0.3)
+    
+    plt.tight_layout()
+    output_path = os.path.join(output_dir, 'home_advantage_analysis.png')
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.close()
+    
+    print(f"\n✓ Chart saved: {output_path}")
+    print(f"✓ Step 11 completed successfully")
+
+
 if __name__ == "__main__":
     print("\n" + "="*60)
     print("EPL MATCH DATA EXPLORATION")
@@ -328,6 +623,18 @@ if __name__ == "__main__":
     # Step 7: Top teams by wins
     top_teams_wins(df, output_dir)
     
+    # Step 8: Shots analysis
+    shots_analysis(df, output_dir)
+    
+    # Step 9: Discipline analysis
+    discipline_analysis(df, output_dir)
+    
+    # Step 10: Half-time analysis
+    halftime_analysis(df, output_dir)
+    
+    # Step 11: Home advantage analysis
+    home_advantage_analysis(df, output_dir)
+    
     print(f"\n{'='*60}")
     print("✓ ALL STEPS COMPLETED SUCCESSFULLY!")
     print(f"{'='*60}")
@@ -337,5 +644,11 @@ if __name__ == "__main__":
     print("  3. correlation_heatmap.png")
     print("  4. season_trends.png")
     print("  5. top_teams_wins.png")
+    print("  6. shots_analysis.png")
+    print("  7. discipline_analysis.png")
+    print("  8. halftime_analysis.png")
+    print("  9. home_advantage_analysis.png")
     print("\nYou can now proceed to Phase 2: Data Preprocessing")
     print("="*60 + "\n")
+
+
