@@ -3,7 +3,7 @@
  * Handles all communication with the backend API
  */
 
-const BASE_URL = 'http://localhost:3001';
+const BASE_URL = 'http://localhost:5001';
 
 /**
  * Fetch model evaluation results

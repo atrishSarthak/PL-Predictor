@@ -56,34 +56,38 @@ export default function ModelResults() {
     );
   }
 
-  // Convert results to array format for Recharts
-  const chartData = Object.entries(results).map(([modelName, metrics]) => ({
-    name: modelName,
-    accuracy: (metrics.accuracy * 100).toFixed(2),
-    precision: (metrics.precision * 100).toFixed(2),
-    recall: (metrics.recall * 100).toFixed(2),
-    f1: (metrics.f1 * 100).toFixed(2)
-  }));
+  // Convert results to array format for Recharts (filter out metadata)
+  const chartData = Object.entries(results)
+    .filter(([modelName]) => modelName !== '_metadata')
+    .map(([modelName, metrics]) => ({
+      name: modelName,
+      accuracy: (metrics.accuracy * 100).toFixed(2),
+      precision: (metrics.precision * 100).toFixed(2),
+      recall: (metrics.recall * 100).toFixed(2),
+      f1: (metrics.f1 * 100).toFixed(2)
+    }));
 
-  // Sort models by F1 score for table
+  // Sort models by F1 score for table (filter out metadata)
   const sortedModels = Object.entries(results)
+    .filter(([name]) => name !== '_metadata')
     .map(([name, metrics]) => ({ name, ...metrics }))
     .sort((a, b) => b.f1 - a.f1);
 
   const bestModel = sortedModels[0];
   
-  // Extract metadata if available
-  const metadata = results._metadata || {};
-  const resultsType = metadata.type || 'Model Results';
+  // Check if we have optimized models
+  const hasOptimizedModels = Object.keys(results).some(key => 
+    key.includes('Optimized') || key.includes('CatBoost')
+  );
 
   return (
     <div className={styles.container}>
       <h1 className={styles.pageTitle}>Model Performance Results</h1>
       <p className={styles.pageDescription}>
-        {resultsType} - Comparison of classification models trained on EPL match data
+        Classification Models - EPL Match Outcome Prediction
       </p>
       
-      {metadata.type === 'CatBoost Enhanced Models' && (
+      {hasOptimizedModels && (
         <div style={{ 
           marginBottom: '1.5rem', 
           padding: '1rem', 
@@ -91,8 +95,8 @@ export default function ModelResults() {
           borderRadius: '8px',
           border: '2px solid #28a745'
         }}>
-          <strong>🚀 Enhanced Models Active!</strong> Showing results from CatBoost and advanced models with 93 features.
-          Best accuracy: 52.67% (CatBoost)
+          <strong>🚀 Optimized Models with Feature Selection!</strong> Using top 50 features (45% reduction) for better accuracy.
+          Best model: {bestModel.name} with {(bestModel.accuracy * 100).toFixed(2)}% accuracy
         </div>
       )}
 
@@ -169,18 +173,20 @@ export default function ModelResults() {
       </p>
       
       <div className={styles.grid}>
-        {Object.keys(results).map((modelName) => {
-          const filename = `cm_${modelName.toLowerCase().replace(/ /g, '_')}.png`;
-          const imageUrl = getStaticUrl(filename);
-          
-          return (
-            <ConfusionMatrix
-              key={modelName}
-              title={modelName}
-              imageUrl={imageUrl}
-            />
-          );
-        })}
+        {Object.keys(results)
+          .filter(key => key !== '_metadata')
+          .map((modelName) => {
+            const filename = `cm_${modelName.toLowerCase().replace(/ /g, '_')}.png`;
+            const imageUrl = getStaticUrl(filename);
+            
+            return (
+              <ConfusionMatrix
+                key={modelName}
+                title={modelName}
+                imageUrl={imageUrl}
+              />
+            );
+          })}
       </div>
     </div>
   );
