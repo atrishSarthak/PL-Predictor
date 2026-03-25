@@ -1,7 +1,6 @@
 """
-Phase 4: Feature Selection
-This script performs feature selection using correlation analysis and Random Forest importance.
-IMPORTANT: Uses model-based feature importance for final selection.
+Phase 4: Feature Selection for Enhanced Data
+Analyzes feature importance and selects top features to reduce noise and improve accuracy
 """
 
 import os
@@ -10,342 +9,250 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
+import joblib
 
-# Set style for plots
+try:
+    from catboost import CatBoostClassifier
+    CATBOOST_AVAILABLE = True
+except ImportError:
+    CATBOOST_AVAILABLE = False
+
 sns.set_style("whitegrid")
-plt.rcParams['figure.figsize'] = (12, 8)
 
 
-def load_balanced_data(filepath):
-    """Load the balanced dataset from previous step."""
+def load_enhanced_data():
+    """Load enhanced preprocessed data."""
     print(f"\n{'='*60}")
-    print("STEP 1: Loading Balanced Data")
+    print("Loading Enhanced Data")
     print(f"{'='*60}")
+    
+    filepath = "output/enhanced_data.csv"
     
     if not os.path.exists(filepath):
-        print(f"ERROR: File not found at {filepath}")
-        print("Please run pipeline/3_imbalance.py first to generate balanced_data.csv")
+        print(f"ERROR: {filepath} not found")
+        print("Please run pipeline/2_preprocess_enhanced.py first")
         sys.exit(1)
     
-    try:
-        df = pd.read_csv(filepath)
-        print(f"✓ Successfully loaded data from {filepath}")
-        print(f"\nDataset Shape: {df.shape[0]} rows, {df.shape[1]} columns")
-        print(f"\nColumn Names: {list(df.columns)}")
-        
-        # Verify FTR exists
-        if 'FTR' not in df.columns:
-            print(f"\nERROR: Target column 'FTR' not found in dataset")
-            print(f"Available columns: {list(df.columns)}")
-            sys.exit(1)
-        
-        print(f"\n✓ Target column 'FTR' verified")
-        print(f"\n✓ Step 1 completed successfully")
-        return df
-    except Exception as e:
-        print(f"ERROR: Failed to load CSV file: {e}")
-        sys.exit(1)
+    df = pd.read_csv(filepath)
+    print(f"✓ Loaded: {df.shape[0]} rows, {df.shape[1]} columns")
+    
+    return df
 
 
-def correlation_analysis(df, output_dir):
-    """Analyze correlation between features and target (exploratory only)."""
+def analyze_feature_importance(df):
+    """Analyze feature importance using both Random Forest and CatBoost."""
     print(f"\n{'='*60}")
-    print("STEP 2: Correlation Analysis (Exploratory)")
+    print("Analyzing Feature Importance")
     print(f"{'='*60}")
     
-    # Select only numeric columns
-    numeric_df = df.select_dtypes(include=[np.number])
+    X = df.drop(['FTR', 'Season'], axis=1)
+    y = df['FTR']
     
-    if numeric_df.empty:
-        print(f"\n⚠ WARNING: No numeric columns found. Skipping correlation analysis.")
-        return None
-    
-    print(f"\nNumeric Columns Found: {list(numeric_df.columns)}")
-    
-    if 'FTR' not in numeric_df.columns:
-        print(f"\n⚠ WARNING: FTR is not numeric. Cannot compute correlations.")
-        return None
-    
-    # Compute correlation with FTR
-    correlations = numeric_df.corr()['FTR'].drop('FTR').sort_values(ascending=False)
-    
-    print(f"\n{'='*50}")
-    print("IMPORTANT NOTE:")
-    print(f"{'='*50}")
-    print("Correlation with encoded FTR (0,1,2) is only INDICATIVE,")
-    print("not definitive for feature selection.")
-    print("FTR is categorical (Away Win, Draw, Home Win), not ordinal.")
-    print("Use Random Forest feature importance for final selection.")
-    print(f"{'='*50}")
-    
-    print(f"\nFeature Correlations with FTR (sorted by absolute value):")
-    print(f"{'='*50}")
-    
-    # Sort by absolute value for display
-    correlations_abs_sorted = correlations.abs().sort_values(ascending=False)
-    
-    for i, feature in enumerate(correlations_abs_sorted.index, 1):
-        corr_value = correlations[feature]
-        abs_corr = abs(corr_value)
-        print(f"  {i:2d}. {feature:25s}: {corr_value:7.4f} (|{abs_corr:.4f}|)")
-    
-    # Create bar chart
-    plt.figure(figsize=(12, 8))
-    
-    # Plot top 15 features by absolute correlation
-    top_n = min(15, len(correlations))
-    top_features = correlations_abs_sorted.head(top_n).index
-    top_values = [correlations[feat] for feat in top_features]
-    
-    colors = ['#2ecc71' if val > 0 else '#e74c3c' for val in top_values]
-    
-    plt.barh(range(len(top_features)), top_values, color=colors, alpha=0.7, edgecolor='black')
-    plt.yticks(range(len(top_features)), top_features)
-    plt.xlabel('Correlation with FTR', fontsize=12)
-    plt.ylabel('Features', fontsize=12)
-    plt.title('Feature Correlations with FTR (Exploratory Only)', fontsize=14, fontweight='bold')
-    plt.axvline(x=0, color='black', linestyle='-', linewidth=0.8)
-    plt.grid(axis='x', alpha=0.3)
-    plt.tight_layout()
-    
-    output_path = os.path.join(output_dir, 'feature_correlations.png')
-    plt.savefig(output_path, dpi=300, bbox_inches='tight')
-    plt.close()
-    
-    print(f"\n✓ Chart saved: {output_path}")
-    print(f"\n✓ Step 2 completed successfully")
-    
-    return correlations
-
-
-def prepare_data_for_selection(df):
-    """Prepare features (X) and target (y) for model-based selection."""
-    print(f"\n{'='*60}")
-    print("STEP 3: Preparing Data for Model-Based Selection")
-    print(f"{'='*60}")
-    
-    # Select only numeric columns
-    numeric_df = df.select_dtypes(include=[np.number])
-    
-    if numeric_df.empty:
-        print(f"\nERROR: No numeric columns found in dataset")
-        sys.exit(1)
-    
-    # Separate features and target
-    if 'FTR' not in numeric_df.columns:
-        print(f"\nERROR: Target column 'FTR' not found in numeric columns")
-        sys.exit(1)
-    
-    feature_columns = [col for col in numeric_df.columns if col != 'FTR']
-    
-    if len(feature_columns) < 2:
-        print(f"\n⚠ WARNING: Only {len(feature_columns)} numeric feature(s) found")
-        print(f"Feature selection requires at least 2 features")
-        if len(feature_columns) == 0:
-            print(f"\nERROR: No features available for selection")
-            sys.exit(1)
-    
-    X = numeric_df[feature_columns].copy()
-    y = numeric_df['FTR'].copy()
-    
-    print(f"\nFeature List ({len(feature_columns)} features):")
-    for i, col in enumerate(feature_columns, 1):
-        print(f"  {i:2d}. {col}")
-    
-    print(f"\nShape of X (features): {X.shape}")
-    print(f"Shape of y (target):   {y.shape}")
-    
-    # Check for any NaN or infinite values
-    if X.isnull().any().any():
-        print(f"\n⚠ WARNING: NaN values detected in features")
-        nan_cols = X.columns[X.isnull().any()].tolist()
-        print(f"Columns with NaN: {nan_cols}")
-    
-    if np.isinf(X.values).any():
-        print(f"\n⚠ WARNING: Infinite values detected in features")
-    
-    print(f"\n✓ Step 3 completed successfully")
-    
-    return X, y, feature_columns
-
-
-def random_forest_feature_importance(X, y, feature_columns, output_dir):
-    """Use Random Forest to compute feature importance."""
-    print(f"\n{'='*60}")
-    print("STEP 4: Random Forest Feature Importance")
-    print(f"{'='*60}")
-    
-    print(f"\nTraining Random Forest Classifier...")
-    print(f"  n_estimators: 100")
-    print(f"  random_state: 42")
-    print(f"  n_jobs: -1 (use all CPU cores)")
-    
-    # Train Random Forest
-    rf = RandomForestClassifier(
-        n_estimators=100,
-        random_state=42,
-        n_jobs=-1,
-        max_depth=10  # Prevent overfitting on full dataset
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y
     )
     
-    rf.fit(X, y)
+    feature_names = X.columns.tolist()
+    importance_scores = {}
     
-    print(f"\n✓ Random Forest trained successfully")
+    # 1. Random Forest Feature Importance
+    print("\n1. Training Random Forest for feature importance...")
+    rf = RandomForestClassifier(
+        n_estimators=200,
+        max_depth=15,
+        random_state=42,
+        n_jobs=-1
+    )
+    rf.fit(X_train, y_train)
     
-    # Extract feature importances
-    importances = rf.feature_importances_
+    rf_importance = pd.DataFrame({
+        'feature': feature_names,
+        'importance': rf.feature_importances_
+    }).sort_values('importance', ascending=False)
     
-    # Create DataFrame for easy sorting
-    importance_df = pd.DataFrame({
-        'Feature': feature_columns,
-        'Importance': importances
-    }).sort_values('Importance', ascending=False)
+    importance_scores['Random Forest'] = rf_importance
+    print(f"✓ Random Forest importance calculated")
     
-    print(f"\nFeature Importance Ranking:")
-    print(f"{'='*50}")
-    print(f"{'Rank':<6} {'Feature':<25} {'Importance':<12}")
-    print(f"{'='*50}")
+    # 2. CatBoost Feature Importance
+    if CATBOOST_AVAILABLE:
+        print("\n2. Training CatBoost for feature importance...")
+        cb = CatBoostClassifier(
+            iterations=500,
+            learning_rate=0.05,
+            depth=8,
+            random_seed=42,
+            verbose=False
+        )
+        cb.fit(X_train, y_train, verbose=False)
+        
+        cb_importance = pd.DataFrame({
+            'feature': feature_names,
+            'importance': cb.feature_importances_
+        }).sort_values('importance', ascending=False)
+        
+        importance_scores['CatBoost'] = cb_importance
+        print(f"✓ CatBoost importance calculated")
     
-    for i, row in importance_df.iterrows():
-        rank = importance_df.index.get_loc(i) + 1
-        print(f"{rank:<6} {row['Feature']:<25} {row['Importance']:<12.6f}")
+    return importance_scores, feature_names
+
+
+def select_top_features(importance_scores, feature_names, top_n=50):
+    """Select top N features based on combined importance."""
+    print(f"\n{'='*60}")
+    print(f"Selecting Top {top_n} Features")
+    print(f"{'='*60}")
     
-    print(f"\nTop 10 Features:")
-    print(f"{'='*50}")
-    top_10 = importance_df.head(10)
-    for i, row in top_10.iterrows():
-        rank = importance_df.index.get_loc(i) + 1
-        print(f"  {rank:2d}. {row['Feature']:<25} (importance: {row['Importance']:.6f})")
+    # Combine importance scores
+    combined_scores = {}
+    
+    for model_name, importance_df in importance_scores.items():
+        for _, row in importance_df.iterrows():
+            feature = row['feature']
+            importance = row['importance']
+            
+            if feature not in combined_scores:
+                combined_scores[feature] = []
+            combined_scores[feature].append(importance)
+    
+    # Average importance across models
+    avg_importance = {
+        feature: np.mean(scores) 
+        for feature, scores in combined_scores.items()
+    }
+    
+    # Sort by average importance
+    sorted_features = sorted(
+        avg_importance.items(), 
+        key=lambda x: x[1], 
+        reverse=True
+    )
+    
+    # Select top N features
+    selected_features = [feature for feature, _ in sorted_features[:top_n]]
+    
+    print(f"\n✓ Selected {len(selected_features)} features")
+    print(f"\nTop 20 Most Important Features:")
+    print("="*60)
+    for i, (feature, importance) in enumerate(sorted_features[:20], 1):
+        print(f"{i:2d}. {feature:40s} {importance:.6f}")
+    
+    return selected_features, sorted_features
+
+
+def create_feature_importance_chart(sorted_features, top_n=30):
+    """Create feature importance visualization."""
+    print(f"\n{'='*60}")
+    print("Creating Feature Importance Chart")
+    print(f"{'='*60}")
+    
+    # Get top N features
+    top_features = sorted_features[:top_n]
+    features = [f[0] for f in top_features]
+    importances = [f[1] for f in top_features]
     
     # Create horizontal bar chart
     plt.figure(figsize=(12, 10))
+    y_pos = np.arange(len(features))
     
-    # Plot all features (or top 20 if too many)
-    n_features_to_plot = min(20, len(importance_df))
-    plot_data = importance_df.head(n_features_to_plot)
+    colors = plt.cm.viridis(np.linspace(0.3, 0.9, len(features)))
     
-    colors = plt.cm.viridis(np.linspace(0.3, 0.9, len(plot_data)))
-    
-    plt.barh(range(len(plot_data)), plot_data['Importance'], color=colors, alpha=0.8, edgecolor='black')
-    plt.yticks(range(len(plot_data)), plot_data['Feature'])
-    plt.xlabel('Feature Importance', fontsize=12)
-    plt.ylabel('Features', fontsize=12)
-    plt.title('Random Forest Feature Importance', fontsize=14, fontweight='bold')
-    plt.gca().invert_yaxis()  # Highest importance at top
+    plt.barh(y_pos, importances, color=colors)
+    plt.yticks(y_pos, features, fontsize=9)
+    plt.xlabel('Average Feature Importance', fontsize=12, fontweight='bold')
+    plt.title(f'Top {top_n} Most Important Features', fontsize=14, fontweight='bold', pad=20)
+    plt.gca().invert_yaxis()
     plt.grid(axis='x', alpha=0.3)
     plt.tight_layout()
     
-    output_path = os.path.join(output_dir, 'feature_importance.png')
-    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    filepath = 'output/feature_importance_enhanced.png'
+    plt.savefig(filepath, dpi=300, bbox_inches='tight')
     plt.close()
     
-    print(f"\n✓ Chart saved: {output_path}")
-    print(f"\n✓ Step 4 completed successfully")
-    
-    return importance_df
+    print(f"✓ Saved: {filepath}")
 
 
-def select_final_features(importance_df, output_dir):
-    """Select top N features based on importance ranking."""
+def save_selected_data(df, selected_features):
+    """Save dataset with only selected features."""
     print(f"\n{'='*60}")
-    print("STEP 5: Selecting Final Features")
+    print("Saving Selected Features Dataset")
     print(f"{'='*60}")
     
-    # Select top 10 features
-    n_features_to_select = min(10, len(importance_df))
+    # Keep selected features + target + season
+    columns_to_keep = selected_features + ['FTR', 'Season']
+    df_selected = df[columns_to_keep].copy()
     
-    if n_features_to_select < 10:
-        print(f"\n⚠ NOTE: Only {n_features_to_select} features available (less than 10)")
+    output_path = 'output/enhanced_data_selected.csv'
+    df_selected.to_csv(output_path, index=False)
     
-    selected_features = importance_df.head(n_features_to_select)['Feature'].tolist()
+    print(f"✓ Saved: {output_path}")
+    print(f"✓ Shape: {df_selected.shape[0]} rows, {df_selected.shape[1]} columns")
     
-    print(f"\nSelected Features (Top {n_features_to_select}):")
-    print(f"{'='*50}")
-    for i, feature in enumerate(selected_features, 1):
-        importance = importance_df[importance_df['Feature'] == feature]['Importance'].values[0]
-        print(f"  {i:2d}. {feature:<25} (importance: {importance:.6f})")
-    
-    # Save to text file
-    output_path = os.path.join(output_dir, 'selected_features.txt')
-    with open(output_path, 'w') as f:
+    # Save feature list
+    feature_list_path = 'output/selected_features_enhanced.txt'
+    with open(feature_list_path, 'w') as f:
         for feature in selected_features:
             f.write(f"{feature}\n")
     
-    print(f"\n✓ Selected features saved to: {output_path}")
-    print(f"\n✓ Step 5 completed successfully")
+    print(f"✓ Saved feature list: {feature_list_path}")
     
-    return selected_features
+    return df_selected
 
 
-def save_feature_selected_data(df, selected_features, output_dir):
-    """Save dataset with only selected features + target."""
+def compare_feature_sets(original_count, selected_count):
+    """Compare original vs selected feature sets."""
     print(f"\n{'='*60}")
-    print("STEP 6: Saving Feature-Selected Dataset")
+    print("Feature Set Comparison")
     print(f"{'='*60}")
     
-    # Create new dataframe with selected features + FTR
-    columns_to_keep = selected_features + ['FTR']
+    reduction = original_count - selected_count
+    reduction_pct = (reduction / original_count) * 100
     
-    # Verify all columns exist
-    missing_cols = [col for col in columns_to_keep if col not in df.columns]
-    if missing_cols:
-        print(f"\n⚠ WARNING: Some columns not found in dataset: {missing_cols}")
-        columns_to_keep = [col for col in columns_to_keep if col in df.columns]
-    
-    df_selected = df[columns_to_keep].copy()
-    
-    # Save to CSV
-    output_path = os.path.join(output_dir, 'feature_selected_data.csv')
-    df_selected.to_csv(output_path, index=False)
-    
-    print(f"\n✓ Feature-selected dataset saved to: {output_path}")
-    print(f"\nFinal Dataset Shape: {df_selected.shape[0]} rows, {df_selected.shape[1]} columns")
-    print(f"\nFinal Column List:")
-    for i, col in enumerate(df_selected.columns, 1):
-        print(f"  {i:2d}. {col}")
-    
-    print(f"\n✓ Step 6 completed successfully")
+    print(f"\nOriginal features:  {original_count}")
+    print(f"Selected features:  {selected_count}")
+    print(f"Reduction:          {reduction} features ({reduction_pct:.1f}%)")
+    print(f"\nBenefits of feature reduction:")
+    print("  ✓ Reduced noise and randomness")
+    print("  ✓ Faster training time")
+    print("  ✓ Better generalization")
+    print("  ✓ Reduced overfitting risk")
 
 
 if __name__ == "__main__":
     print("\n" + "="*60)
-    print("EPL MATCH DATA - FEATURE SELECTION")
+    print("ENHANCED FEATURE SELECTION")
     print("="*60)
     
-    # Define paths
-    input_path = "pipeline/output/balanced_data.csv"
-    output_dir = "pipeline/output"
+    # Load data
+    df = load_enhanced_data()
+    original_feature_count = df.shape[1] - 2  # Exclude FTR and Season
     
-    # Ensure output directory exists
-    os.makedirs(output_dir, exist_ok=True)
+    # Analyze feature importance
+    importance_scores, feature_names = analyze_feature_importance(df)
     
-    # Step 1: Load balanced data
-    df = load_balanced_data(input_path)
+    # Select top features (try 50, 40, 30)
+    # Start with 50 to keep most important features
+    selected_features, sorted_features = select_top_features(
+        importance_scores, 
+        feature_names, 
+        top_n=50
+    )
     
-    # Step 2: Correlation analysis (exploratory)
-    correlations = correlation_analysis(df, output_dir)
+    # Create visualization
+    create_feature_importance_chart(sorted_features, top_n=30)
     
-    # Step 3: Prepare data for model-based selection
-    X, y, feature_columns = prepare_data_for_selection(df)
+    # Save selected dataset
+    df_selected = save_selected_data(df, selected_features)
     
-    # Step 4: Random Forest feature importance
-    importance_df = random_forest_feature_importance(X, y, feature_columns, output_dir)
-    
-    # Step 5: Select final features
-    selected_features = select_final_features(importance_df, output_dir)
-    
-    # Step 6: Save feature-selected dataset
-    save_feature_selected_data(df, selected_features, output_dir)
+    # Compare feature sets
+    compare_feature_sets(original_feature_count, len(selected_features))
     
     print(f"\n{'='*60}")
-    print("✓ ALL FEATURE SELECTION STEPS COMPLETED!")
+    print("✓ FEATURE SELECTION COMPLETED!")
     print(f"{'='*60}")
-    print(f"\nOutput Files Generated:")
-    print(f"  1. {output_dir}/feature_correlations.png")
-    print(f"  2. {output_dir}/feature_importance.png")
-    print(f"  3. {output_dir}/selected_features.txt")
-    print(f"  4. {output_dir}/feature_selected_data.csv")
-    print(f"\nTop {len(selected_features)} features selected based on Random Forest importance")
-    print(f"\nYou can now proceed to Phase 5: Model Training")
+    print("\nNext steps:")
+    print("1. Run: python3 5_models_catboost_optimized.py")
+    print("2. Compare accuracy with full feature set")
+    print("3. If accuracy improves, use selected features")
     print("="*60 + "\n")

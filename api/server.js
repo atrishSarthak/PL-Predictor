@@ -16,7 +16,7 @@ app.use(cors());
 app.use(express.json());
 
 // Configuration
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 const OUTPUT_DIR = path.join(__dirname, '..', 'pipeline', 'output');
 
 // Log configuration on startup
