@@ -48,22 +48,31 @@ app.get('/api/health', (req, res) => {
 
 /**
  * GET /api/results
- * Returns model evaluation results from model_results.json
+ * Returns model evaluation results (prioritizes CatBoost results if available)
  */
 app.get('/api/results', (req, res) => {
     console.log('GET /api/results');
     
     try {
-        // Build file path using path.join
-        const filePath = path.join(OUTPUT_DIR, 'model_results.json');
+        // Try CatBoost results first (newer, better models)
+        const catboostPath = path.join(OUTPUT_DIR, 'catboost_results.json');
+        const baselinePath = path.join(OUTPUT_DIR, 'model_results.json');
         
-        // Check if file exists
-        if (!fs.existsSync(filePath)) {
-            console.log(`  ✗ File not found: ${filePath}`);
+        let filePath, resultsType;
+        
+        if (fs.existsSync(catboostPath)) {
+            filePath = catboostPath;
+            resultsType = 'CatBoost Enhanced Models';
+            console.log(`  ✓ Using CatBoost results (52.67% accuracy)`);
+        } else if (fs.existsSync(baselinePath)) {
+            filePath = baselinePath;
+            resultsType = 'Baseline Models';
+            console.log(`  ✓ Using baseline results`);
+        } else {
+            console.log(`  ✗ No results files found`);
             return res.status(404).json({
                 error: 'File not found',
-                file: 'model_results.json',
-                message: 'Please run pipeline/6_evaluate.py first to generate results'
+                message: 'Please run pipeline/6_evaluate_catboost.py or pipeline/6_evaluate.py first'
             });
         }
         
@@ -71,8 +80,14 @@ app.get('/api/results', (req, res) => {
         const fileContent = fs.readFileSync(filePath, 'utf8');
         const results = JSON.parse(fileContent);
         
-        console.log(`  ✓ Successfully loaded model_results.json`);
-        res.json(results);
+        console.log(`  ✓ Successfully loaded results`);
+        res.json({
+            ...results,
+            _metadata: {
+                type: resultsType,
+                source: path.basename(filePath)
+            }
+        });
         
     } catch (error) {
         console.error(`  ✗ Error reading results: ${error.message}`);

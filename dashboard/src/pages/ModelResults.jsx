@@ -71,13 +71,30 @@ export default function ModelResults() {
     .sort((a, b) => b.f1 - a.f1);
 
   const bestModel = sortedModels[0];
+  
+  // Extract metadata if available
+  const metadata = results._metadata || {};
+  const resultsType = metadata.type || 'Model Results';
 
   return (
     <div className={styles.container}>
       <h1 className={styles.pageTitle}>Model Performance Results</h1>
       <p className={styles.pageDescription}>
-        Comparison of classification models trained on EPL match data
+        {resultsType} - Comparison of classification models trained on EPL match data
       </p>
+      
+      {metadata.type === 'CatBoost Enhanced Models' && (
+        <div style={{ 
+          marginBottom: '1.5rem', 
+          padding: '1rem', 
+          backgroundColor: '#d4edda', 
+          borderRadius: '8px',
+          border: '2px solid #28a745'
+        }}>
+          <strong>🚀 Enhanced Models Active!</strong> Showing results from CatBoost and advanced models with 93 features.
+          Best accuracy: 52.67% (CatBoost)
+        </div>
+      )}
 
       {/* Performance Comparison Chart */}
       <div className={styles.card} style={{ marginBottom: '2rem' }}>
