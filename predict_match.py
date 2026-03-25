@@ -137,7 +137,7 @@ try:
                      'gd_diff_last10', 'home_last10_shots', 'away_last10_shots'])
     
     # Make prediction
-    prediction = model.predict(X)[0]
+    prediction = int(model.predict(X)[0])
     probabilities = model.predict_proba(X)[0]
     
     print("\n" + "="*70)

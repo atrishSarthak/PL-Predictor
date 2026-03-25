@@ -35,11 +35,14 @@ export default function Predictor() {
     // Load results to determine best model
     const results = await fetchResults();
     if (results) {
-      const models = Object.entries(results).map(([name, metrics]) => ({
-        name,
-        ...metrics
-      }));
-      const best = models.sort((a, b) => b.f1 - a.f1)[0];
+      const models = Object.entries(results)
+        .filter(([name]) => name !== '_metadata')
+        .map(([name, metrics]) => ({
+          name,
+          ...metrics
+        }));
+      // Sort by ACCURACY (not F1)
+      const best = models.sort((a, b) => b.accuracy - a.accuracy)[0];
       setBestModel(best);
     }
     

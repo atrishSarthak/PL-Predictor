@@ -256,11 +256,12 @@ def save_results(results):
 def print_summary(results):
     """Print final summary with comparison."""
     print(f"\n{'='*60}")
-    print("FINAL SUMMARY - OPTIMIZED MODELS")
+    print("FINAL SUMMARY - ALL MODELS")
     print(f"{'='*60}\n")
     
     df = pd.DataFrame(results).T
     df = df.drop('confusion_matrix', axis=1)
+    # Sort by ACCURACY (not F1)
     df = df.sort_values('accuracy', ascending=False)
     
     print(df.to_string())
@@ -270,7 +271,7 @@ def print_summary(results):
     best_precision = df.loc[best_model, 'precision']
     
     print(f"\n{'='*60}")
-    print(f"🏆 BEST MODEL: {best_model}")
+    print(f"🏆 BEST MODEL (by Accuracy): {best_model}")
     print(f"{'='*60}")
     print(f"Accuracy:  {best_accuracy*100:.2f}%")
     print(f"Precision: {best_precision*100:.2f}%")

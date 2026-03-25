@@ -67,11 +67,11 @@ export default function ModelResults() {
       f1: (metrics.f1 * 100).toFixed(2)
     }));
 
-  // Sort models by F1 score for table (filter out metadata)
+  // Sort models by ACCURACY (not F1 score) for table
   const sortedModels = Object.entries(results)
     .filter(([name]) => name !== '_metadata')
     .map(([name, metrics]) => ({ name, ...metrics }))
-    .sort((a, b) => b.f1 - a.f1);
+    .sort((a, b) => b.accuracy - a.accuracy);  // Sort by accuracy
 
   const bestModel = sortedModels[0];
   
@@ -126,7 +126,7 @@ export default function ModelResults() {
       <div className={styles.card} style={{ marginBottom: '2rem' }}>
         <h2 className={styles.cardTitle}>Detailed Metrics</h2>
         <p className={styles.cardDescription}>
-          Models ranked by F1-Score (best model highlighted in green)
+          Models ranked by Accuracy (best model highlighted in green)
         </p>
         
         <table className={styles.table}>
@@ -159,7 +159,7 @@ export default function ModelResults() {
 
         {bestModel && (
           <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#d4edda', borderRadius: '4px' }}>
-            <strong>🏆 Best Model:</strong> {bestModel.name} with F1-Score of {(bestModel.f1 * 100).toFixed(2)}%
+            <strong>🏆 Best Model (by Accuracy):</strong> {bestModel.name} with {(bestModel.accuracy * 100).toFixed(2)}% accuracy
           </div>
         )}
       </div>
