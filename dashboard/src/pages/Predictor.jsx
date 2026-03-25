@@ -129,7 +129,7 @@ export default function Predictor() {
                 <input
                   type="number"
                   id={feature}
-                  step="0.01"
+                  step="1"
                   value={formData[feature]}
                   onChange={(e) => handleInputChange(feature, e.target.value)}
                   className={styles.formInput}
